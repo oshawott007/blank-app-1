@@ -1,12 +1,29 @@
 import streamlit as st
 from pymongo import MongoClient
 import time
+import ssl
 
 # MongoDB Atlas connection
-MONGODB_URI = "mongodb+srv://infernapeamber:g9kASflhhSQ26GMF@cluster0.mjoloub.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"  # Replace with your actual MongoDB Atlas URI
-client = MongoClient(MONGODB_URI)
-db = client['form_db']  # Database name
-submissions_collection = db['submissions']  # Collection for form submissions
+MONGODB_URI = "mongodb+srv://infernapeamber:vg9kASflhhSQ26GMF@cluster0.mjoloub.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"  # Replace with your actual MongoDB Atlas URI
+
+# Initialize MongoDB client with explicit SSL settings
+try:
+    client = MongoClient(
+        MONGODB_URI,
+        serverSelectionTimeoutMS=5000,  # Timeout for server selection
+        connectTimeoutMS=20000,         # Timeout for connection
+        socketTimeoutMS=20000,          # Timeout for socket operations
+        ssl=True,
+        ssl_cert_reqs=ssl.CERT_REQUIRED  # Require SSL certificate validation
+    )
+    # Test connection
+    client.admin.command('ping')
+    db = client['form_db']  # Database name
+    submissions_collection = db['submissions']  # Collection for form submissions
+    st.success("Connected to MongoDB Atlas successfully!")
+except Exception as e:
+    st.error(f"Failed to connect to MongoDB Atlas: {str(e)}")
+    st.stop()
 
 def save_submission(name: str, email: str, message: str) -> bool:
     """
