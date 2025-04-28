@@ -3,7 +3,7 @@ from pymongo import MongoClient
 import time
 
 # MongoDB Atlas connection
-MONGODB_URI = "mongodb+srv://infernapeamber:g9kASflhhSQ26GMF@cluster0.mjoloub.mongodb.net/"  # Replace with your actual MongoDB Atlas URI
+MONGODB_URI = "mongodb+srv://infernapeamber:g9kASflhhSQ26GMF@cluster0.mjoloub.mongodb.net/?retryWrites=true&w=majority"  # Replace with your actual MongoDB Atlas URI
 
 # Initialize MongoDB client
 try:
