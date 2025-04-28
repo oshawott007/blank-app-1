@@ -6,7 +6,7 @@ import urllib.parse
 # MongoDB Atlas connection
 # Replace with your actual MongoDB Atlas URI
 # Use either mongodb+srv or standard URI format
-MONGODB_URI = "mongodb+srv://infernapeamber:g9kASflhhSQ26GMF@cluster0.mjoloub.mongodb.net/?retryWrites=true&w=majority"
+MONGODB_URI = "mongodb+srv://infernapeamber:g9kASflhhSQ26GMF@cluster0.mjoloub.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 
 # Optional: Standard URI fallback if mongodb+srv fails
 # Example: mongodb://<username>:<password>@ac-4hozb1p-shard-00-00.mjoloub.mongodb.net:27017,...
