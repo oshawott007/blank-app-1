@@ -3,4 +3,4 @@ streamlit>=1.22.0
 opencv-python-headless>=4.7.0
 pillow>=9.5.0
 numpy>=1.24.3
-pymongo==4.6.1 
+pymongo==4.9.1
