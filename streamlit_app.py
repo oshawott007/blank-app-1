@@ -1,18 +1,37 @@
 import streamlit as st
 from pymongo import MongoClient
 import time
+import urllib.parse
 
 # MongoDB Atlas connection
-MONGODB_URI = "mongodb+srv://infernapeamber:g9kASflhhSQ26GMF@cluster0.mjoloub.mongodb.net/?retryWrites=true&w=majority"  # Replace with your actual MongoDB Atlas URI
+# Replace with your actual MongoDB Atlas URI
+# Use either mongodb+srv or standard URI format
+MONGODB_URI = "mongodb+srv://infernapeamber:g9kASflhhSQ26GMF@cluster0.mjoloub.mongodb.net/?retryWrites=true&w=majority"
+
+# Optional: Standard URI fallback if mongodb+srv fails
+# Example: mongodb://<username>:<password>@ac-4hozb1p-shard-00-00.mjoloub.mongodb.net:27017,...
+# MONGODB_URI = "your_standard_mongodb_uri_here"
 
 # Initialize MongoDB client
 try:
-    client = MongoClient(
-        MONGODB_URI,
-        serverSelectionTimeoutMS=5000,  # Timeout for server selection
-        connectTimeoutMS=20000,         # Timeout for connection
-        socketTimeoutMS=20000           # Timeout for socket operations
-    )
+    # URL-encode username and password for safety
+    parsed_uri = urllib.parse.urlparse(MONGODB_URI)
+    if parsed_uri.scheme == "mongodb+srv":
+        client = MongoClient(
+            MONGODB_URI,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000
+        )
+    else:
+        client = MongoClient(
+            MONGODB_URI,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000,
+            ssl=True
+        )
+    
     # Test connection
     client.admin.command('ping')
     db = client['form_db']  # Database name
@@ -20,7 +39,13 @@ try:
     st.success("Connected to MongoDB Atlas successfully!")
 except Exception as e:
     st.error(f"Failed to connect to MongoDB Atlas: {str(e)}")
-    st.write("Please check your MongoDB Atlas URI, network access settings, and ensure your environment supports TLS 1.2+.")
+    st.write("**Troubleshooting Steps**:")
+    st.write("1. **Verify MongoDB Atlas URI**: Ensure username, password, and cluster name are correct. URL-encode special characters in the password (e.g., @ → %40).")
+    st.write("2. **Network Access**: In MongoDB Atlas, set Network Access to 0.0.0.0/0 (allow all) for testing, especially for Streamlit Cloud.")
+    st.write("3. **TLS Support**: Ensure Python 3.9+ and pymongo 4.8.0+ are used. Check Streamlit Cloud settings.")
+    st.write("4. **Try Standard URI**: If mongodb+srv fails, use the standard URI from Atlas Connect > Drivers.")
+    st.write("5. **Cluster Status**: Verify the cluster is running in MongoDB Atlas (not paused).")
+    st.write("6. **Test Locally**: Run the app locally to isolate cloud-specific issues.")
     st.stop()
 
 def save_submission(name: str, email: str, message: str) -> bool:
@@ -68,7 +93,7 @@ def get_all_submissions() -> list:
 # Streamlit app
 st.title("📝 Simple Form with MongoDB Atlas")
 
-st.write("Please fill out the form below. On submission, all stored data will be displayed.")
+st.write("Fill out the form below to submit data to MongoDB Atlas. All submissions will be displayed upon successful submission.")
 
 # Form
 with st.form("submission_form"):
