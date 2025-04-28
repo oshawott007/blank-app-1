@@ -1,101 +1,87 @@
 import streamlit as st
-from PIL import Image
-import numpy as np
-import cv2
-import tempfile
-import os
-from ultralytics import YOLO
+from pymongo import MongoClient
+import time
 
-# Set page config
-st.set_page_config(page_title="YOLOv8n Object Detection", layout="wide")
+# MongoDB Atlas connection
+MONGODB_URI = "mongodb+srv://infernapeamber:g9kASflhhSQ26GMF@cluster0.mjoloub.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"  # Replace with your actual MongoDB Atlas URI
+client = MongoClient(MONGODB_URI)
+db = client['form_db']  # Database name
+submissions_collection = db['submissions']  # Collection for form submissions
 
-# Title
-st.title("YOLOv8n Object Detection App")
-
-# Sidebar
-st.sidebar.title("Settings")
-confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.25, 0.01)
-
-# Function to load model (with caching)
-@st.cache_resource
-def load_model():
+def save_submission(name: str, email: str, message: str) -> bool:
+    """
+    Save form submission to MongoDB Atlas.
+    
+    Args:
+        name (str): User's name
+        email (str): User's email
+        message (str): User's message
+    
+    Returns:
+        bool: True if submission was successful, False otherwise
+    """
     try:
-        model = YOLO('yolov8n.pt')
-        return model
+        submission = {
+            "name": name,
+            "email": email,
+            "message": message,
+            "submitted_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        submissions_collection.insert_one(submission)
+        return True
     except Exception as e:
-        st.error(f"Failed to load model. Error: {e}")
-        return None
+        st.error(f"Failed to save submission: {str(e)}")
+        return False
 
-model = load_model()
+def get_all_submissions() -> list:
+    """
+    Retrieve all submissions from MongoDB Atlas.
+    
+    Returns:
+        list: List of submission dictionaries
+    """
+    try:
+        submissions = list(submissions_collection.find())
+        # Remove MongoDB's internal _id field
+        for submission in submissions:
+            submission.pop('_id', None)
+        return submissions
+    except Exception as e:
+        st.error(f"Failed to load submissions: {str(e)}")
+        return []
 
-# Function to perform detection
-def detect_objects(image):
-    if model is None:
-        st.error("Model not loaded. Please check the error above.")
-        return image
-    
-    # Convert PIL image to numpy array
-    img_array = np.array(image)
-    
-    # Perform detection
-    results = model.predict(
-        source=img_array,
-        conf=confidence_threshold,
-        save=False,
-        save_txt=False
-    )
-    
-    # Plot results on the image
-    detected_img = results[0].plot()
-    
-    # Convert BGR to RGB (OpenCV uses BGR by default)
-    detected_img = cv2.cvtColor(detected_img, cv2.COLOR_BGR2RGB)
-    
-    return detected_img
+# Streamlit app
+st.title("📝 Simple Form with MongoDB Atlas")
 
-# Main content
-option = st.radio("Select Input Type:", ("Upload Image", "Use Webcam"))
+st.write("Please fill out the form below. On submission, all stored data will be displayed.")
 
-if option == "Upload Image":
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_file is not None:
-        # Display original image
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Original Image", use_column_width=True)
-        
-        # Perform detection
-        if st.button("Detect Objects"):
-            with st.spinner("Detecting objects..."):
-                detected_image = detect_objects(image)
-                st.image(detected_image, caption="Detected Objects", use_column_width=True)
+# Form
+with st.form("submission_form"):
+    name = st.text_input("Name", placeholder="Enter your name")
+    email = st.text_input("Email", placeholder="Enter your email")
+    message = st.text_area("Message", placeholder="Enter your message")
+    submit_button = st.form_submit_button("Submit")
 
-else:  # Webcam option
-    picture = st.camera_input("Take a picture")
-    
-    if picture:
-        # Display original image
-        image = Image.open(picture)
-        st.image(image, caption="Captured Image", use_column_width=True)
-        
-        # Perform detection
-        with st.spinner("Detecting objects..."):
-            detected_image = detect_objects(image)
-            st.image(detected_image, caption="Detected Objects", use_column_width=True)
+    if submit_button:
+        if name and email and message:
+            if save_submission(name, email, message):
+                st.success("Submission saved successfully!")
+                
+                # Display all submissions
+                st.subheader("📋 All Submissions")
+                submissions = get_all_submissions()
+                
+                if submissions:
+                    for submission in submissions:
+                        st.write("---")
+                        st.write(f"**Name**: {submission['name']}")
+                        st.write(f"**Email**: {submission['email']}")
+                        st.write(f"**Message**: {submission['message']}")
+                        st.write(f"**Submitted At**: {submission['submitted_at']}")
+                else:
+                    st.info("No submissions found in the database.")
+        else:
+            st.warning("Please fill in all fields!")
 
-# Add some info
-st.sidebar.markdown("---")
-st.sidebar.info(
-    "This app uses YOLOv8n (nano version) for object detection. "
-    "Adjust the confidence threshold to filter detections."
-)
-
-# Add requirements for Streamlit Cloud
-st.sidebar.markdown("### Requirements for Deployment")
-st.sidebar.code("""
-ultralytics==8.0.0
-streamlit==1.22.0
-opencv-python==4.7.0.72
-pillow==9.5.0
-numpy==1.24.3
-""")
+# Close MongoDB connection (optional, PyMongo handles connection pooling)
+client.close()
