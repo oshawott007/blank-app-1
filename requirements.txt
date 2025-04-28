@@ -1,1 +1,5 @@
-streamlit
+ultralytics>=8.0.0
+streamlit>=1.22.0
+opencv-python>=4.7.0
+pillow>=9.5.0
+numpy>=1.24.3
