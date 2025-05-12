@@ -958,6 +958,7 @@
 
 
 
+
 import streamlit as st
 import requests
 from PIL import Image
@@ -1036,6 +1037,50 @@ IST = pytz.timezone('Asia/Kolkata')
 # Function to get current time in IST
 def get_current_time_ist():
     return datetime.now(pytz.UTC).astimezone(IST)
+
+# Function to validate and fix camera URL format
+def validate_camera_url(url):
+    """
+    Validates and fixes common issues with camera URLs.
+
+    Args:
+        url: The camera URL to validate
+
+    Returns:
+        tuple: (fixed_url, error_message)
+    """
+    if not url:
+        return url, "URL cannot be empty"
+
+    # Check for RTSP URLs with format issues
+    if url.lower().startswith('rtsp://'):
+        # Count @ symbols to detect potential issues
+        at_count = url.count('@')
+
+        if at_count > 1:
+            # Multiple @ symbols found, likely an issue with username/password
+            # Try to fix it by finding the last @ which should separate credentials from IP
+            last_at_index = url.rindex('@')
+
+            # Extract the part before the last @
+            auth_part = url[:last_at_index]
+            # Extract the part after the last @
+            address_part = url[last_at_index+1:]
+
+            # Find the rtsp:// part
+            protocol_end = auth_part.find('://') + 3
+
+            # Get the credentials part (everything between :// and the last @)
+            credentials = auth_part[protocol_end:]
+
+            # If there are still @ symbols in credentials, URL encode them
+            if '@' in credentials:
+                encoded_credentials = credentials.replace('@', '%40')
+                fixed_url = f"rtsp://{encoded_credentials}@{address_part}"
+                return fixed_url, "URL was fixed by encoding special characters"
+
+    # If no issues found or not an RTSP URL
+    return url, None
 
 # Function to load cameras from JSON file
 def load_cameras():
@@ -1488,11 +1533,24 @@ with st.form("add_camera_form"):
     with col1:
         camera_name = st.text_input("Camera Name")
     with col2:
-        camera_url = st.text_input("Camera URL")
+        camera_url = st.text_input("Camera URL", help="For RTSP URLs with username/password, use format: rtsp://username:password@ip:port/path")
+
+    # Help text for common camera URL formats
+    st.markdown("""
+    **URL Format Examples:**
+    - MJPEG: `http://camera-ip:port/video.mjpg`
+    - RTSP: `rtsp://username:password@camera-ip:port/path`
+    - Static Image: `http://camera-ip:port/image.jpg`
+
+    **Note:** If your password contains special characters like `@`, they must be URL-encoded (e.g., `@` becomes `%40`)
+    """)
 
     submit_button = st.form_submit_button("Add Camera")
 
     if submit_button and camera_name and camera_url:
+        # Validate and fix the camera URL
+        fixed_url, error_message = validate_camera_url(camera_url)
+
         # Check if camera with same name already exists
         exists = False
         for cam in st.session_state.cameras:
@@ -1503,7 +1561,7 @@ with st.form("add_camera_form"):
         if not exists:
             new_camera = {
                 "name": camera_name,
-                "url": camera_url,
+                "url": fixed_url,  # Use the fixed URL
                 "last_frame": None,
                 "status": "Connecting...",
                 "detection_active": False,
@@ -1512,8 +1570,13 @@ with st.form("add_camera_form"):
             st.session_state.cameras.append(new_camera)
             # Save to JSON file
             save_success = save_cameras(st.session_state.cameras)
+
+            # Show success message with URL fix info if applicable
             if save_success:
-                st.session_state.save_success = "Camera added and saved successfully!"
+                success_message = "Camera added and saved successfully!"
+                if error_message:
+                    success_message += f" Note: {error_message}"
+                st.session_state.save_success = success_message
             else:
                 st.session_state.save_success = "Camera added but failed to save to file."
             st.rerun()
