@@ -954,6 +954,10 @@
 
 
 
+
+
+
+
 import streamlit as st
 import requests
 from PIL import Image
@@ -986,46 +990,45 @@ from tailgating_view import display_tailgating_events
 from camera_processing import process_camera_frames, process_occupancy_detection, process_no_access_detection, get_mjpeg_frame, detect_humans
 from camera_processing_tailgating import process_tailgating_detection, optimize_frame
 
-# Define video streaming functions
-def create_mjpeg_stream(camera_url, width="100%", height="auto"):
-    """
-    Create an HTML iframe that displays a live MJPEG stream.
-
-    Args:
-        camera_url: URL of the MJPEG stream
-        width: Width of the video player (default: 100%)
-        height: Height of the video player (default: auto)
-
-    Returns:
-        HTML code for displaying the stream
-    """
-    # Create a unique ID for this stream based on the URL
-    stream_id = f"stream_{hash(camera_url) % 10000}"
-
-    # Create HTML for the video stream
-    html = f"""
-    <div style="width:{width};">
-        <img src="{camera_url}" width="100%" id="{stream_id}" style="border-radius: 5px;">
-    </div>
-    """
-
-    return html
-
+# Define video streaming functions for Streamlit Cloud compatibility
 def display_video_stream(camera_url, placeholder):
     """
-    Display a live video stream in the given placeholder.
+    Display a video stream in the given placeholder.
+    Uses a more compatible approach for Streamlit Cloud.
 
     Args:
-        camera_url: URL of the MJPEG stream
+        camera_url: URL of the camera stream
         placeholder: Streamlit placeholder to display the stream in
     """
-    # Create the HTML for the video stream
-    html_code = create_mjpeg_stream(camera_url)
+    try:
+        # For Streamlit Cloud, we'll use a polling approach to fetch frames
+        frame_data, error = get_mjpeg_frame(camera_url)
 
-    # Display the stream in the placeholder
-    placeholder.markdown(html_code, unsafe_allow_html=True)
+        if frame_data:
+            # Display the frame as an image
+            image = Image.open(io.BytesIO(frame_data))
 
-    return True
+            # Create a unique ID for this stream based on the URL
+            stream_id = f"stream_{hash(camera_url) % 10000}"
+
+            # Add timestamp to prevent caching
+            timestamp = datetime.now().strftime("%H:%M:%S")
+
+            # Display the image with a caption showing it's live
+            placeholder.image(image, use_container_width=True, caption=f"Live feed - {timestamp}")
+
+            # Store the last successful frame time
+            if 'last_frame_times' not in st.session_state:
+                st.session_state.last_frame_times = {}
+            st.session_state.last_frame_times[stream_id] = datetime.now()
+
+            return True
+        else:
+            placeholder.error(f"Could not connect to camera: {error}")
+            return False
+    except Exception as e:
+        placeholder.error(f"Error displaying stream: {str(e)}")
+        return False
 
 # Define Indian time zone
 IST = pytz.timezone('Asia/Kolkata')
@@ -1556,30 +1559,38 @@ if st.session_state.cameras:
                     st.session_state.save_success = "Camera removed but failed to save changes."
                 st.rerun()
 
-# Refresh control for detection processing
-refresh_rate = 1  # Base refresh rate for UI updates (1 second)
+# Refresh control for Streamlit Cloud compatibility
+refresh_rate = 1  # Refresh frames every 1 second for smoother experience
 detection_refresh_rate = 30  # Run detection every 30 seconds
 
 # Add live stream information
 current_time_ist = get_current_time_ist()
-st.info(f"Showing live camera streams. Detection runs every 30 seconds. Last updated: {current_time_ist.strftime('%H:%M:%S')} IST")
+st.info(f"Camera feeds refresh automatically. Detection runs every 30 seconds. Last updated: {current_time_ist.strftime('%H:%M:%S')} IST")
 
-# Set up auto-refresh for detection
+# Set up auto-refresh for frames and detection
 if 'last_auto_refresh' not in st.session_state:
     st.session_state.last_auto_refresh = get_current_time_ist()
+if 'last_frame_refresh' not in st.session_state:
+    st.session_state.last_frame_refresh = get_current_time_ist()
 
 # Check if it's time for detection refresh (only if not in history view)
 auto_refresh_time_diff = (current_time_ist - st.session_state.last_auto_refresh).total_seconds()
+frame_refresh_time_diff = (current_time_ist - st.session_state.last_frame_refresh).total_seconds()
+
+# Add auto-rerun for Streamlit Cloud to refresh frames
+if frame_refresh_time_diff >= refresh_rate and not st.session_state.active_history_camera:
+    st.session_state.last_frame_refresh = current_time_ist
+    # Use rerun to force a refresh of frames
+    st.rerun()
+
+# Run detection on a separate schedule
 if auto_refresh_time_diff >= detection_refresh_rate and not st.session_state.active_history_camera:
     st.session_state.last_auto_refresh = current_time_ist
-    st.session_state.last_refresh = current_time_ist
     st.session_state.last_detection = current_time_ist - timedelta(seconds=st.session_state.detection_interval)
 
     # Process camera frames for detection
     from camera_processing import process_camera_frames
     st.session_state.cameras = process_camera_frames(st.session_state.cameras, save_occupancy_data)
-
-    # No need to rerun as we're using live streams
 
 # Initialize last detection time if not set
 if 'last_detection' not in st.session_state:
@@ -1646,7 +1657,7 @@ if st.session_state.cameras:
                     if camera["last_frame"] is not None:
                         try:
                             image = Image.open(io.BytesIO(camera["last_frame"]))
-                            frame_place.image(image, use_column_width=True)
+                            frame_place.image(image, use_container_width=True)
                         except Exception as img_error:
                             status.error(f"Error displaying image: {str(img_error)}")
 
@@ -1775,7 +1786,7 @@ if st.session_state.cameras:
                     if camera["last_frame"] is not None:
                         try:
                             image = Image.open(io.BytesIO(camera["last_frame"]))
-                            frame_place.image(image, use_column_width=True)
+                            frame_place.image(image, use_container_width=True)
                         except Exception as img_error:
                             status.error(f"Error displaying image: {str(img_error)}")
 
