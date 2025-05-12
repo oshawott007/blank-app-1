@@ -986,8 +986,46 @@ from tailgating_view import display_tailgating_events
 from camera_processing import process_camera_frames, process_occupancy_detection, process_no_access_detection, get_mjpeg_frame, detect_humans
 from camera_processing_tailgating import process_tailgating_detection, optimize_frame
 
-# Import video streaming module
-from video_stream import display_video_stream
+# Define video streaming functions
+def create_mjpeg_stream(camera_url, width="100%", height="auto"):
+    """
+    Create an HTML iframe that displays a live MJPEG stream.
+
+    Args:
+        camera_url: URL of the MJPEG stream
+        width: Width of the video player (default: 100%)
+        height: Height of the video player (default: auto)
+
+    Returns:
+        HTML code for displaying the stream
+    """
+    # Create a unique ID for this stream based on the URL
+    stream_id = f"stream_{hash(camera_url) % 10000}"
+
+    # Create HTML for the video stream
+    html = f"""
+    <div style="width:{width};">
+        <img src="{camera_url}" width="100%" id="{stream_id}" style="border-radius: 5px;">
+    </div>
+    """
+
+    return html
+
+def display_video_stream(camera_url, placeholder):
+    """
+    Display a live video stream in the given placeholder.
+
+    Args:
+        camera_url: URL of the MJPEG stream
+        placeholder: Streamlit placeholder to display the stream in
+    """
+    # Create the HTML for the video stream
+    html_code = create_mjpeg_stream(camera_url)
+
+    # Display the stream in the placeholder
+    placeholder.markdown(html_code, unsafe_allow_html=True)
+
+    return True
 
 # Define Indian time zone
 IST = pytz.timezone('Asia/Kolkata')
