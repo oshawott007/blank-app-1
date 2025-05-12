@@ -1,0 +1,14 @@
+[
+    {
+        "name": "road",
+        "url": " http://220.157.230.36/nphMotionJpeg?Resolution=640x480",
+        "camera_id": "ab4038aa-4929-4f65-a83f-3f9413ac9158",
+        "detection_active": false
+    },
+    {
+        "name": "roundabout",
+        "url": " http://83.48.75.113:8320/axis-cgi/mjpg/video.cgi",
+        "camera_id": "66da366d-7ba8-4907-b356-774cf26ed65c",
+        "detection_active": true
+    }
+]
