@@ -657,7 +657,7 @@ if st.session_state.cameras:
                         st.session_state.cameras[idx]["last_frame"] = frame_data
                         st.session_state.cameras[idx]["status"] = "Connected"
                         image = Image.open(io.BytesIO(frame_data))
-                        frame_place.image(image, use_container_width=True)
+                        frame_place.image(image, use_column_width=True)
                         status.success("Connected")
                     else:
                         status.error(f"Failed to get frame: {error}")
@@ -665,7 +665,7 @@ if st.session_state.cameras:
                     # Display the cached frame
                     try:
                         image = Image.open(io.BytesIO(camera["last_frame"]))
-                        frame_place.image(image, use_container_width=True)
+                        frame_place.image(image, use_column_width=True)
                     except Exception as e:
                         status.error(f"Error displaying image: {str(e)}")
 
@@ -780,7 +780,7 @@ if st.session_state.cameras:
                         st.session_state.cameras[idx]["last_frame"] = frame_data
                         st.session_state.cameras[idx]["status"] = "Connected"
                         image = Image.open(io.BytesIO(frame_data))
-                        frame_place.image(image, use_container_width=True)
+                        frame_place.image(image, use_column_width=True)
                         status.success("Connected")
                     else:
                         status.error(f"Failed to get frame: {error}")
@@ -788,7 +788,7 @@ if st.session_state.cameras:
                     # Display the cached frame
                     try:
                         image = Image.open(io.BytesIO(camera["last_frame"]))
-                        frame_place.image(image, use_container_width=True)
+                        frame_place.image(image, use_column_width=True)
                     except Exception as e:
                         status.error(f"Error displaying image: {str(e)}")
 
